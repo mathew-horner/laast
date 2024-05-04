@@ -15,8 +15,6 @@ pub async fn read(example_name: &str) -> Result<Vec<Laast>> {
     }
 
     let mut read_dir = fs::read_dir(&directory).await?;
-
-    // NOCHECKIN: Should we be using a JoinSet here?
     let futs = FuturesUnordered::new();
 
     // Propagate if we fail to get the next entry, we don't want to spin here indefinitely.
@@ -26,13 +24,9 @@ pub async fn read(example_name: &str) -> Result<Vec<Laast>> {
 
     let laasts = futs
         .filter_map(|result| async move {
-            match result {
-                Ok(laast) => Some(laast),
-                Err(error) => {
-                    log::warn!("failed to process entry: {error}");
-                    None
-                }
-            }
+            result
+                .inspect_err(|error| log::warn!("failed to process entry: {error}"))
+                .ok()
         })
         .collect()
         .await;
